@@ -1,101 +1,202 @@
-# Gemini Live API - Vanilla JS
+# 🎙️ Gemini Voice Interface
 
-WebSocket client for Google's Gemini Live API with audio/video streaming support. No frameworks, just vanilla JavaScript.
+A real-time multimodal voice assistant built on **Google Vertex AI Gemini Live API (Native Audio)**. The application enables low-latency voice conversations through a browser using streaming audio, WebSockets, and OAuth-based authentication without exposing API keys.
 
-[![Plain JS Demo Video](https://img.youtube.com/vi/RLM1Qsp64WU/hqdefault.jpg)](https://www.youtube.com/watch?v=RLM1Qsp64WU)
+> This project uses Google's official Native Audio reference implementation as the communication layer and extends it with a custom application backend, configuration management, and web interface.
 
-## Quick Start
-
-```bash
-# Install dependencies
-pip3 install -r requirements.txt
-
-# Authenticate with Google Cloud
-gcloud auth application-default login
-
-# Start server (serves UI + WebSocket proxy)
-python3 server.py
-
-# Open browser
-open http://localhost:8000
-```
+---
 
 ## Features
 
-- **Real-time audio/video streaming** to Gemini
-- **Custom tools** (alerts, CSS injection)
-- **Device selection** for mic/camera
-- **Auto-authentication** via proxy server
-- **Zero config** - proxy URL pre-configured
+- 🎤 Real-time voice conversations with Gemini Live
+- ⚡ Low-latency bidirectional audio streaming
+- 🔊 Native Audio responses
+- 🗣️ Voice Activity Detection (VAD)
+- 📝 Optional input/output transcription
+- 🌐 Browser-based interface
+- 🔒 Secure OAuth authentication using Google Cloud Application Default Credentials (ADC)
+- 🔁 Python WebSocket proxy for secure communication
+- 🎥 Camera and screen sharing support
+- 🧩 Function calling support
+- 🌍 Google Grounding support
+
+---
+
+## Architecture
+
+```
+Browser
+      │
+      │ WebSocket
+      ▼
+Python WebSocket Proxy
+(server.py)
+      │
+      │ OAuth Bearer Token
+      ▼
+Vertex AI Gemini Live API
+(Native Audio)
+```
+
+The browser never communicates directly with Vertex AI.
+
+The backend authenticates using Google Cloud credentials and securely proxies all WebSocket communication between the client and Gemini Live.
+
+---
+
+## Tech Stack
+
+### Backend
+
+- Python
+- aiohttp
+- websockets
+- google-auth
+- python-dotenv
+
+### Frontend
+
+- HTML
+- CSS
+- JavaScript
+
+### Google Cloud
+
+- Vertex AI Gemini Live API
+- Google Cloud OAuth (Application Default Credentials)
+
+---
 
 ## Project Structure
 
 ```
-/
-├── server.py      # WebSocket proxy + HTTP server
-├── requirements.txt     # Python dependencies
-└── frontend/
-    ├── index.html      # UI
-    ├── geminilive.js   # Gemini API client
-    ├── mediaUtils.js   # Audio/video streaming
-    ├── tools.js        # Custom tool definitions
-    └── script.js       # App logic
+.
+├── frontend/
+│   ├── index.html
+│   ├── script.js
+│   ├── geminilive.js
+│   ├── audio.js
+│   ├── video.js
+│   └── ...
+│
+├── server.py
+├── requirements.txt
+├── .env
+└── README.md
 ```
 
-## Core APIs
+---
 
-### GeminiLive Client
+## Authentication
 
-```javascript
-const client = new GeminiLiveAPI(proxyUrl, projectId, model);
-client.addFunction(toolInstance); // Add custom tools
-client.connect(accessToken); // Connect (token optional with proxy)
-client.sendText("Hello"); // Send text
-client.sendAudioMessage(base64); // Send audio
-client.sendImageMessage(base64); // Send image
+This project does **not** use API keys.
+
+Authentication is performed using **Google Cloud Application Default Credentials (ADC)**.
+
+During development:
+
+```bash
+gcloud auth application-default login
 ```
 
-### Media Streaming
+The backend automatically generates short-lived OAuth access tokens using:
 
-```javascript
-// Audio streaming
-const audioStreamer = new AudioStreamer(client);
-await audioStreamer.start(deviceId); // Optional device ID
-
-// Video streaming
-const videoStreamer = new VideoStreamer(client);
-await videoStreamer.start({ fps: 1, deviceId: "..." });
-
-// Audio playback
-const player = new AudioPlayer();
-await player.play(base64PCM);
+```python
+google.auth.default()
 ```
 
-### Custom Tools
+These tokens are used to authenticate requests to Vertex AI.
 
-```javascript
-class MyTool extends FunctionCallDefinition {
-  constructor() {
-    super("tool_name", "description", parameters, required);
-  }
+---
 
-  functionToCall(params) {
-    // Tool implementation
-  }
-}
+## Installation
+
+### Clone the repository
+
+```bash
+git clone https://github.com/<username>/gemini-voice-interface.git
+cd gemini-voice-interface
 ```
 
-## Configuration Options
+### Install dependencies
 
-- **Model**: `gemini-live-2.5-flash-native-audio` (default)
-- **Voice**: Puck, Charon, Kore, Fenrir, Aoede
-- **Response**: Audio, text, or both
-- **Tools**: Custom functions or Google grounding
+```bash
+pip install -r requirements.txt
+```
 
-## Development
+### Authenticate
 
-The proxy server handles:
+```bash
+gcloud auth application-default login
+```
 
-- Google Cloud authentication
-- WebSocket proxying to Gemini API
-- Static file serving from `frontend/`
+### Configure
+
+Create a `.env` file.
+
+```env
+GOOGLE_CLOUD_PROJECT=your-project-id
+GOOGLE_CLOUD_LOCATION=us-central1
+```
+
+---
+
+## Run
+
+```bash
+python server.py
+```
+
+Open:
+
+```
+http://localhost:8000
+```
+
+---
+
+## How it Works
+
+1. The browser establishes a WebSocket connection with the local Python server.
+2. The backend obtains an OAuth access token using Google Cloud credentials.
+3. The backend creates a secure WebSocket connection with Vertex AI Gemini Live.
+4. Audio, video, and text messages are streamed bidirectionally between the browser and Gemini Live through the backend proxy.
+5. Responses are streamed back in real time using Gemini Native Audio.
+
+---
+
+## Current Capabilities
+
+- Real-time speech-to-speech interaction
+- Audio streaming
+- Voice interruption handling
+- Input/output transcription
+- Camera streaming
+- Screen sharing
+- Function calling
+- Grounding support
+
+---
+
+## Future Work
+
+- Conversation history
+- Multiple assistant personalities
+- Resume interview mode
+- Meeting assistant
+- Memory and context management
+- Retrieval-Augmented Generation (RAG)
+- Production deployment
+- Custom UI/UX improvements
+
+---
+
+## Acknowledgements
+
+This project is built on top of Google's official **Gemini Live Native Audio** reference implementation while extending it with custom backend integration, configuration management, and application-level functionality.
+
+Google Cloud Vertex AI Documentation:
+https://cloud.google.com/vertex-ai
+
+Gemini Live API:
+https://ai.google.dev/gemini-api/docs/live
