@@ -77,7 +77,7 @@ gemini-voice-interface/
 ### Clone the repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/gemini-voice-interface.git
+git clone https://github.com/Mahek-S/gemini-voice-interface.git
 cd gemini-voice-interface
 ```
 
