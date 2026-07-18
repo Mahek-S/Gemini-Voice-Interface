@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gemini Voice Demo</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 32px 16px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .header h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .header p {
+      font-size: .85rem;
+      color: #64748b;
+    }
+
+    /* Config panel - hidden by default, shown via gear icon */
+    .config-panel {
+      width: 100%;
+      max-width: 640px;
+      background: #1e293b;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    .config-panel.open {
+      display: block;
+    }
+
+    .config-panel label {
+      font-size: .8rem;
+      color: #94a3b8;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .config-panel input[type=text],
+    .config-panel select,
+    .config-panel textarea {
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 8px;
+      color: #e2e8f0;
+      font-size: .85rem;
+      margin-bottom: 10px;
+    }
+
+    .config-panel input[type=checkbox] {
+      margin-right: 6px;
+    }
+
+    .config-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: .85rem;
+    }
+
+    /* Status */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #1e293b;
+      border-radius: 20px;
+      padding: 8px 18px;
+      margin-bottom: 16px;
+      font-size: .85rem;
+      color: #94a3b8;
+    }
+
+    #statusDot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #475569;
+      flex-shrink: 0;
+      transition: background .3s;
+    }
+
+    /* Volume meter */
+    .meter-wrap {
+      width: 100%;
+      max-width: 640px;
+      margin-bottom: 14px;
+    }
+
+    .meter-label {
+      font-size: .7rem;
+      color: #475569;
+      margin-bottom: 4px;
+    }
+
+    .meter-bg {
+      background: #1e293b;
+      border-radius: 4px;
+      height: 6px;
+      overflow: hidden;
+    }
+
+    #volumeMeter {
+      height: 100%;
+      width: 0%;
+      border-radius: 4px;
+      transition: width .08s;
+      background: #334155;
+    }
+
+    /* Buttons */
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    button {
+      padding: 10px 22px;
+      border-radius: 10px;
+      border: none;
+      font-size: .88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .2s, transform .1s;
+    }
+
+    button:active {
+      transform: scale(.97);
+    }
+
+    button:disabled {
+      opacity: .35;
+      cursor: not-allowed;
+    }
+
+    #btnConnect {
+      background: #22c55e;
+      color: #0f172a;
+    }
+
+    #btnDisconnect {
+      background: #ef4444;
+      color: #fff;
+    }
+
+    #btnAudio {
+      background: #3b82f6;
+      color: #fff;
+    }
+
+    #btnConfig {
+      background: #334155;
+      color: #94a3b8;
+      font-size: .8rem;
+      padding: 8px 14px;
+    }
+
+    /* Conversation */
+    .convo-wrap {
+      width: 100%;
+      max-width: 640px;
+      background: #1e293b;
+      border-radius: 16px;
+      padding: 20px;
+      height: 420px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      scroll-behavior: smooth;
+    }
+
+    .bubble-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+    }
+
+    .bubble-row.user {
+      flex-direction: row-reverse;
+    }
+
+    .bubble-row.system {
+      justify-content: center;
+    }
+
+    .avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .8rem;
+      flex-shrink: 0;
+    }
+
+    .avatar.gemini {
+      background: #4f46e5;
+    }
+
+    .avatar.user {
+      background: #0ea5e9;
+    }
+
+    .bubble {
+      max-width: 78%;
+      padding: 10px 14px;
+      border-radius: 16px;
+      font-size: .875rem;
+      line-height: 1.55;
+    }
+
+    .bubble-row.gemini .bubble {
+      background: #273549;
+      color: #e2e8f0;
+      border-bottom-left-radius: 4px;
+    }
+
+    .bubble-row.user .bubble {
+      background: #0ea5e9;
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+
+    .bubble-row.system .bubble {
+      background: transparent;
+      color: #475569;
+      font-size: .78rem;
+      padding: 2px 0;
+    }
+
+    /* Typing */
+    .typing {
+      display: flex;
+      gap: 4px;
+      padding: 12px 14px;
+      background: #273549;
+      border-radius: 16px;
+      border-bottom-left-radius: 4px;
+      width: fit-content;
+    }
+
+    .typing span {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #64748b;
+      animation: bounce .9s infinite;
+    }
+
+    .typing span:nth-child(2) {
+      animation-delay: .15s;
+    }
+
+    .typing span:nth-child(3) {
+      animation-delay: .3s;
+    }
+
+    @keyframes bounce {
+
+      0%,
+      60%,
+      100% {
+        transform: translateY(0);
+      }
+
+      30% {
+        transform: translateY(-6px);
+      }
+    }
+
+    .hint {
+      margin-top: 14px;
+      font-size: .75rem;
+      color: #334155;
+    }
+
+    /* Hidden fields needed by script.js but not shown */
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="header">
+    <h1>🎙️ Gemini Voice</h1>
+    <p>gemini-live-2.5-flash-native-audio · Vertex AI · Native Audio</p>
+  </div>
+
+  <!-- Config panel (shown via gear button) -->
+  <div class="config-panel" id="configPanel">
+    <label>Project ID</label>
+    <input type="text" id="projectId" placeholder="your-gcp-project-id" />
+
+    <label>Model</label>
+    <input type="text" id="model" value="gemini-live-2.5-flash-native-audio" />
+
+    <label>Proxy WebSocket URL</label>
+    <input type="text" id="proxyUrl" value="ws://localhost:8080" />
+
+    <label>System Instructions</label>
+    <textarea id="systemInstructions"
+      rows="2">You are a helpful, friendly voice assistant. Keep responses concise and conversational.</textarea>
+
+    <label>Voice</label>
+    <select id="voiceSelect">
+      <option value="Puck">Puck</option>
+      <option value="Charon">Charon</option>
+      <option value="Kore">Kore</option>
+      <option value="Fenrir">Fenrir</option>
+      <option value="Aoede" selected>Aoede</option>
+    </select>
+
+    <div class="config-row">
+      <input type="checkbox" id="enableAffectiveDialog" checked />
+      <label style="margin:0">Affective Dialog (emotion detection)</label>
+    </div>
+    <div class="config-row">
+      <input type="checkbox" id="enableInputTranscription" checked />
+      <label style="margin:0">Show your speech transcript</label>
+    </div>
+    <div class="config-row">
+      <input type="checkbox" id="enableOutputTranscription" checked />
+      <label style="margin:0">Show Gemini transcript</label>
+    </div>
+    <div class="config-row">
+      <input type="checkbox" id="enableProactiveAudio" />
+      <label style="margin:0">Proactive Audio</label>
+    </div>
+  </div>
+
+  <!-- Hidden fields required by script.js -->
+  <div class="hidden">
+    <input type="checkbox" id="enableGrounding" />
+    <input type="checkbox" id="enableAlertTool" />
+    <input type="checkbox" id="enableCssStyleTool" />
+    <input type="checkbox" id="disableActivityDetection" />
+    <input type="number" id="silenceDuration" value="500" />
+    <input type="number" id="prefixPadding" value="500" />
+    <select id="endSpeechSensitivity">
+      <option value="END_SENSITIVITY_HIGH" selected>High</option>
+    </select>
+    <select id="startSpeechSensitivity">
+      <option value="START_SENSITIVITY_HIGH" selected>High</option>
+    </select>
+    <select id="activityHandling">
+      <option value="START_OF_ACTIVITY_INTERRUPTS" selected>Interrupt</option>
+    </select>
+    <input type="range" id="temperature" value="1.0" />
+    <select id="micSelect">
+      <option value="">Default</option>
+    </select>
+    <select id="cameraSelect">
+      <option value="">Default</option>
+    </select>
+    <input type="range" id="volume" value="80" />
+    <span id="volumeValue">80%</span>
+    <span id="temperatureValue">1.0</span>
+    <button id="startVideoBtn">Video</button>
+    <button id="startScreenBtn">Screen</button>
+    <video id="videoPreview" hidden></video>
+    <pre id="debugInfo"></pre>
+    <details id="setupJsonSection">
+      <pre id="setupJsonDisplay"></pre>
+    </details>
+    <input type="text" id="chatInput" />
+    <button id="sendBtn">Send</button>
+  </div>
+
+  <!-- Status -->
+  <div class="status-bar">
+    <div id="statusDot"></div>
+    <span id="connectionStatus">Disconnected</span>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <button id="btnConnect">Connect &amp; Start</button>
+    <button id="btnAudio" disabled>🎤 Start Mic</button>
+    <button id="btnDisconnect" disabled>Disconnect</button>
+    <button id="btnConfig">⚙ Settings</button>
+  </div>
+
+  <!-- Volume meter -->
+  <div class="meter-wrap">
+    <div class="meter-label">🎤 Mic level</div>
+    <div class="meter-bg">
+      <div id="volumeMeter"></div>
+    </div>
+  </div>
+
+  <!-- Conversation -->
+  <div class="convo-wrap" id="convoWrap">
+    <div class="bubble-row system">
+      <div class="bubble">Click <strong>Connect &amp; Start</strong>, then click <strong>Start Mic</strong> and speak.
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden fields required by script.js — DO NOT REMOVE ANY -->
+  <div class="hidden">
+    <input type="checkbox" id="enableGrounding" />
+    <input type="checkbox" id="enableAlertTool" />
+    <input type="checkbox" id="enableCssStyleTool" />
+    <input type="checkbox" id="disableActivityDetection" />
+    <input type="number" id="silenceDuration" value="500" />
+    <input type="number" id="prefixPadding" value="500" />
+    <select id="endSpeechSensitivity">
+      <option value="END_SENSITIVITY_HIGH" selected>High</option>
+    </select>
+    <select id="startSpeechSensitivity">
+      <option value="START_SENSITIVITY_HIGH" selected>High</option>
+    </select>
+    <select id="activityHandling">
+      <option value="START_OF_ACTIVITY_INTERRUPTS" selected>Interrupt</option>
+    </select>
+    <input type="range" id="temperature" value="1.0" min="0.1" max="2.0" step="0.1" />
+    <span id="temperatureValue">1.0</span>
+    <select id="micSelect">
+      <option value="">Default</option>
+    </select>
+    <select id="cameraSelect">
+      <option value="">Default</option>
+    </select>
+    <input type="range" id="volume" value="80" min="0" max="100" />
+    <span id="volumeValue">80%</span>
+    <button id="startVideoBtn">Video</button>
+    <button id="startScreenBtn">Screen</button>
+    <video id="videoPreview" hidden></video>
+    <pre id="debugInfo"></pre>
+    <details id="setupJsonSection">
+      <pre id="setupJsonDisplay"></pre>
+    </details>
+    <input type="text" id="chatInput" />
+    <button id="sendBtn">Send</button>
+    <button id="connectBtn">Connect</button>
+    <button id="disconnectBtn">Disconnect</button>
+    <button id="startAudioBtn">Audio</button>
+  </div>
+  <p class="hint">Powered by Gemini Live API · Vertex AI · Native Audio</p>
+
+  <!-- Load their scripts exactly as-is -->
+  <script src="geminilive.js"></script>
+  <script src="mediaUtils.js"></script>
+  <script src="tools.js"></script>
+  <script src="script.js"></script>
+
+  <!-- Our UI bridge — wires our clean UI to their script.js -->
+  <script>
+    const btnConnect = document.getElementById('btnConnect');
+    const btnDisconnect = document.getElementById('btnDisconnect');
+    const btnAudio = document.getElementById('btnAudio');
+    const btnConfig = document.getElementById('btnConfig');
+    const statusDot = document.getElementById('statusDot');
+    const convoWrap = document.getElementById('convoWrap');
+    const configPanel = document.getElementById('configPanel');
+
+    let geminiBuffer = '';
+    let userBuffer = '';
+    let isAudioOn = false;
+
+    // ── Config toggle ──────────────────────────────────────
+    btnConfig.addEventListener('click', () => {
+      configPanel.classList.toggle('open');
+    });
+
+    // ── Connect ────────────────────────────────────────────
+    // ── Connect ────────────────────────────────────────────
+    btnConnect.addEventListener('click', async () => {
+      await connect();  // calls script.js connect()
+
+      // geminilive.js uses onConnectionStarted, not onOpen
+      // patch it after connect() creates the client
+      setTimeout(() => {
+        if (state.client) {
+          state.client.onConnectionStarted = () => {
+            document.getElementById('connectionStatus').textContent = 'Connected';
+            statusDot.style.background = '#22c55e';
+            btnConnect.disabled = true;
+            btnDisconnect.disabled = false;
+            btnAudio.disabled = false;
+            addBubble('system', 'Gemini ready — click Start Mic and speak!');
+          };
+
+          state.client.onErrorMessage = (msg) => {
+            document.getElementById('connectionStatus').textContent = 'Error: ' + msg;
+            statusDot.style.background = '#ef4444';
+            btnConnect.disabled = false;
+            btnDisconnect.disabled = true;
+            btnAudio.disabled = true;
+          };
+        }
+      }, 100); // small delay to let connect() finish creating the client
+    });
+
+    // ── Disconnect ─────────────────────────────────────────
+    btnDisconnect.addEventListener('click', () => {
+      disconnect();     // calls script.js disconnect()
+    });
+
+    // ── Mic toggle ─────────────────────────────────────────
+    btnAudio.addEventListener('click', async () => {
+      await toggleAudio();  // calls script.js toggleAudio()
+      isAudioOn = !isAudioOn;
+      btnAudio.textContent = isAudioOn ? '🔴 Stop Mic' : '🎤 Start Mic';
+    });
+
+    // ── Override script.js addMessage to use our bubble UI ─
+    window.addMessage = function (text, type, append = false) {
+      if (!text || text.trim() === '') return;
+
+      // Map their types to ours
+      if (type === 'system') {
+        addBubble('system', text);
+        return;
+      }
+
+      if (type === 'user-transcript') {
+        userBuffer += text;
+        showTyping();
+        return;
+      }
+
+      if (type === 'assistant') {
+        if (append) {
+          geminiBuffer += text;
+          showTyping();
+        } else {
+          // flush immediately for non-append
+          if (text.startsWith('**')) return; // skip thinking blocks
+          addBubble('gemini', text);
+        }
+        return;
+      }
+
+      if (type === 'user') {
+        addBubble('user', text);
+        return;
+      }
+    };
+
+    // ── Override updateStatus to update our status bar ─────
+    window.updateStatus = function (elementId, text) {
+      // script.js calls updateStatus('debugInfo', 'Connected successfully') on success
+      if (elementId === 'debugInfo' && text === 'Connected successfully') {
+        document.getElementById('connectionStatus').textContent = 'Connected';
+        statusDot.style.background = '#22c55e';
+        btnConnect.disabled = true;
+        btnDisconnect.disabled = false;
+        btnAudio.disabled = false;
+        addBubble('system', 'Gemini ready — click 🎤 Start Mic and speak!');
+        return;
+      }
+
+      if (elementId === 'connectionStatus') {
+        document.getElementById('connectionStatus').textContent = text;
+        if (text === 'Disconnected') {
+          statusDot.style.background = '#475569';
+          btnConnect.disabled = false;
+          btnDisconnect.disabled = true;
+          btnAudio.disabled = true;
+          isAudioOn = false;
+          btnAudio.textContent = '🎤 Start Mic';
+        } else if (text.includes('Error') || text.includes('failed')) {
+          statusDot.style.background = '#ef4444';
+          btnConnect.disabled = false;
+          btnDisconnect.disabled = true;
+          btnAudio.disabled = true;
+        }
+      }
+    };
+
+    // ── Handle interrupted — flush buffers, clear typing ───
+    const originalHandleMessage = window.handleMessage;
+    // Patch to flush buffers on turn complete / interrupted
+    document.addEventListener('gemini-turn-complete', flushBuffers);
+
+    // Intercept their handleMessage for TURN_COMPLETE and INTERRUPTED
+    window.handleMessage = function (message) {
+      if (message.type === 'INTERRUPTED') {
+        geminiBuffer = '';
+        userBuffer = '';
+        removeTyping();
+        addBubble('system', 'Interrupted');
+        if (state.audio && state.audio.player) state.audio.player.interrupt();
+        return;
+      }
+      if (message.type === 'TURN COMPLETE') {
+        flushBuffers();
+      }
+      // Call original for everything else
+      if (originalHandleMessage) originalHandleMessage(message);
+    };
+
+    function flushBuffers() {
+      removeTyping();
+      if (userBuffer.trim()) { addBubble('user', userBuffer.trim()); userBuffer = ''; }
+      if (geminiBuffer.trim()) { addBubble('gemini', geminiBuffer.trim()); geminiBuffer = ''; }
+    }
+
+    // ── UI helpers ──────────────────────────────────────────
+    function addBubble(who, text) {
+      removeTyping();
+      const row = document.createElement('div');
+      row.className = `bubble-row ${who}`;
+      if (who === 'system') {
+        row.innerHTML = `<div class="bubble">${text}</div>`;
+      } else if (who === 'gemini') {
+        row.innerHTML = `<div class="avatar gemini">✦</div><div class="bubble">${text}</div>`;
+      } else {
+        row.innerHTML = `<div class="bubble">${text}</div><div class="avatar user">🙋</div>`;
+      }
+      convoWrap.appendChild(row);
+      convoWrap.scrollTop = convoWrap.scrollHeight;
+    }
+
+    function showTyping() {
+      if (document.getElementById('typingIndicator')) return;
+      const row = document.createElement('div');
+      row.className = 'bubble-row gemini';
+      row.id = 'typingIndicator';
+      row.innerHTML = `<div class="avatar gemini">✦</div><div class="typing"><span></span><span></span><span></span></div>`;
+      convoWrap.appendChild(row);
+      convoWrap.scrollTop = convoWrap.scrollHeight;
+    }
+
+    function removeTyping() {
+      document.getElementById('typingIndicator')?.remove();
+    }
+
+    // ── Volume meter from AudioStreamer ─────────────────────
+    // Patch AudioStreamer to also update the meter
+    const OrigAudioStreamer = window.AudioStreamer;
+    if (OrigAudioStreamer) {
+      const origStart = OrigAudioStreamer.prototype.start;
+      OrigAudioStreamer.prototype.start = async function (deviceId) {
+        await origStart.call(this, deviceId);
+        // patch the worklet to also send volume
+        if (this.audioWorklet) {
+          const origHandler = this.audioWorklet.port.onmessage;
+          this.audioWorklet.port.onmessage = (e) => {
+            if (e.data.type === 'audio' && e.data.data) {
+              const f32 = e.data.data;
+              let sum = 0;
+              for (let i = 0; i < f32.length; i++) sum += f32[i] * f32[i];
+              const rms = Math.sqrt(sum / f32.length);
+              const db = 20 * Math.log10(rms + 1e-9);
+              const pct = Math.min(100, Math.max(0, (db + 60) / 60 * 100));
+              const meter = document.getElementById('volumeMeter');
+              if (meter) {
+                meter.style.width = pct + '%';
+                meter.style.background = pct > 60 ? '#22c55e' : pct > 30 ? '#f59e0b' : '#334155';
+              }
+            }
+            if (origHandler) origHandler(e);
+          };
+        }
+      };
+    }
+
+    // Add this at the bottom of your <script> section
+    async function loadConfig() {
+      try {
+        const res = await fetch('/config');
+        const cfg = await res.json();
+
+        // Auto-fill the hidden/visible fields
+        document.getElementById('projectId').value = cfg.projectId || '';
+        document.getElementById('model').value = cfg.model || 'gemini-live-2.5-flash-native-audio';
+        document.getElementById('proxyUrl').value = cfg.proxyUrl || 'ws://localhost:8080';
+
+        console.log('✅ Config loaded from server:', cfg);
+      } catch (e) {
+        console.warn('Could not load config from server, using defaults');
+      }
+    }
+
+    // Call on page load
+    window.addEventListener('DOMContentLoaded', loadConfig);
+
+  </script>
+
+</body>
+
+</html>
